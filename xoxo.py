@@ -43,6 +43,7 @@ class Piece:
 
 
 class Board:
+
     def __init__(self, surface, playground_x, playground_y, playground_width, playground_height, row_count,
                  padding, grid_color, bg_color, drop_shadow_color, playground_color, player_color):
         self.surface = surface
@@ -63,6 +64,7 @@ class Board:
 
         self.__piece_list = [[Pieces.NONE for _ in range(self.__rows)] for _ in range(self.__rows)]
         self.__turn = 0
+        self.__move_count = 0
 
 
     def set_piece_list(self, pl):
@@ -134,6 +136,7 @@ class Board:
                                        (self.__cell_size/2) - self.__padding, 10)
 
     def input_manager(self, x, y ):
+        current_piece = Pieces.X if self.__turn == 0 else Pieces.O
         if x > P_X + self.__padding and \
                 x < P_X - self.__padding + self.__pw and \
                 x > P_Y + self.__padding and \
@@ -144,28 +147,44 @@ class Board:
             list_y = math.floor(self.__rows / (self.__ph - self.__padding * 2) * list_y)
 
             if self.__piece_list[list_x][list_y] == Pieces.NONE:
-                self.__piece_list[list_x][list_y] = Pieces.X if self.__turn == 0 else Pieces.O
+                self.__piece_list[list_x][list_y] = current_piece
 
                 self.__turn += 1
                 self.__turn = self.__turn % 2
-                return True
+                self.__move_count += 1
 
-        return False
+                for i in range(self.__rows):
+                    if self.__piece_list[list_x][i] != current_piece:
+                        break
+                    if i == self.__rows - 1:
+                        return current_piece
 
-    def get_status(self):
-        if self.__piece_list[0][0] == self.__piece_list[1][1] and self.__piece_list[0][0] == self.__piece_list[2][2]:
-            return self.__piece_list[0][0]
+                for i in range(self.__rows):
+                    if self.__piece_list[i][list_y] != current_piece:
+                        break
+                    if i == self.__rows - 1:
+                        return current_piece
 
-        elif self.__piece_list[2][0] == self.__piece_list[1][1] and self.__piece_list[0][2] == self.__piece_list[2][0]:
-            return self.__piece_list[0][2]
+                if list_x == list_y:
+                    for i in range(self.__rows):
+                        if self.__piece_list[i][i] != current_piece:
+                            break
+                        if i == self.__rows - 1:
+                            return current_piece
 
-        for c in range(len(self.__piece_list)):
-            if self.__piece_list[c][0] == self.__piece_list[c][1] and self.__piece_list[c][0] == self.__piece_list[c][2]:
-                return self.__piece_list[c][0]
-            elif self.__piece_list[0][c] == self.__piece_list[1][c] and self.__piece_list[0][c] == self.__piece_list[2][c]:
-                return self.__piece_list[0][c]
+                if list_x + list_y == self.__rows-1:
+                    for i in range(self.__rows):
+                        if self.__piece_list[i][(self.__rows-1) - i] != current_piece:
+                            break
+                        if i == self.__rows - 1:
+                            return current_piece
 
-        return  Pieces.NONE
+                if self.__move_count == math.pow(self.__rows, 2):
+                    print("draw")
+                    return False
+
+        return True
+
 
     def render(self):
         self.draw_playground()
@@ -183,9 +202,21 @@ class Board:
         pygame.display.update()
         pygame.time.wait(1500)
 
+    def show_draw(self):
+        pygame.draw.rect(self.surface, self.__bg_color, (0, 0, self.__sw, self.__sh))
+
+        font = pygame.font.SysFont("Helvetica", 100)
+        title = font.render(f"DRAW!", 1, PLAYGROUND_COLOR)
+        self.surface.blit(title, (self.__sw / 2 - title.get_width() / 2, (self.__sh / 2) - title.get_height() / 2))
+
+        pygame.display.update()
+        pygame.time.wait(1500)
+
     def update(self, x, y):
-        if self.input_manager(x, y):
-            self.render()
+        status = self.input_manager(x, y)
+        self.render()
+
+        return status
 
 
 
@@ -206,15 +237,14 @@ def game(surface):
                 is_running = False
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                board.update(event.pos[0], event.pos[1])
+                status = board.update(event.pos[0], event.pos[1])
 
-                winner_status = board.get_status()
-                if winner_status != Pieces.NONE:
-                    board.show_winner(winner_status)
+                if status == Pieces.X or status == Pieces.O:
+                    board.show_winner(status)
                     is_running = False
-
-
-
+                elif not status:
+                    board.show_draw()
+                    is_running = False
 
 
 def main():
